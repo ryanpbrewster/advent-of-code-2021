@@ -11,7 +11,7 @@ fn score1(input: &[i32]) -> usize {
 }
 
 fn score2(input: &[i32]) -> usize {
-    let agg: Vec<i32> = input.windows(3).map(|w| w.into_iter().sum()).collect();
+    let agg: Vec<i32> = input.windows(3).map(|w| w.iter().sum()).collect();
     agg.windows(2).filter(|xs| xs[1] > xs[0]).count()
 }
 #[cfg(test)]
