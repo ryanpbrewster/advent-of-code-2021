@@ -49,7 +49,7 @@ mod test {
         let raw = std::fs::read_to_string("data/day07.input")?;
         let input = parse_input(&raw)?;
         assert_eq!(solve1(&input), 344297);
-        assert_eq!(solve2(&input), 344297);
+        assert_eq!(solve2(&input), 97164301);
         Ok(())
     }
 }
