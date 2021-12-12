@@ -63,7 +63,7 @@ fn parse_input(raw: &str) -> anyhow::Result<Vec<Move>> {
     let parsed = raw
         .trim()
         .lines()
-        .map(|line| parse_move(line))
+        .map(parse_move)
         .collect::<anyhow::Result<_>>()?;
     Ok(parsed)
 }
