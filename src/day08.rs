@@ -85,42 +85,26 @@ fn translated_sum(sample: &Sample) -> Option<usize> {
 
     // Consider the [0, 6, 9] case. Only 9 fully overlaps w/ 4. 0 and 6 differ in how they overlap w/ 1.
 
-    let output = sample.outputs.iter().map(|signal| {
-        if signal.len() == 2 {
-            return 1;
-        }
-        if signal.len() == 3 {
-            return 7;
-        }
-        if signal.len() == 4 {
-            return 4;
-        }
-        if signal.len() == 7 {
-            return 8;
-        }
-        if signal.len() == 5 {
-            if overlap(signal, one) == 2 {
-                return 3;
-            }
-            if overlap(signal, four) == 3 {
-                return 5;
-            }
-            if overlap(signal, four) == 2 {
-                return 2;
-            }
-        }
-        if signal.len() == 6 {
-            if overlap(signal, four) == 4 {
-                return 9;
-            }
-            if overlap(signal, one) == 2 {
-                return 0;
-            }
-            if overlap(signal, one) == 1 {
-                return 6;
-            }
-        }
-        panic!("could not figure out what {:?} means", signal);
+    let output = sample.outputs.iter().map(|signal| match signal.len() {
+        2 => 1,
+        3 => 7,
+        4 => 4,
+        7 => 8,
+        // length 5 --> [2, 3, 5]
+        5 => match (overlap(signal, one), overlap(signal, four)) {
+            (2, _) => 3,
+            (_, 3) => 5,
+            (_, 2) => 2,
+            _ => panic!("{:?} overlaps w/ 1 and 4 strangely", signal),
+        },
+        // length 6 --> [0, 6, 9]
+        6 => match (overlap(signal, one), overlap(signal, four)) {
+            (_, 4) => 9,
+            (2, _) => 0,
+            (1, _) => 6,
+            _ => panic!("{:?} overlaps w/ 1 and 4 strangely", signal),
+        },
+        _ => panic!("{:?} has a weird length", signal),
     });
     Some(output.fold(0, |acc, d| 10 * acc + d))
 }
@@ -158,7 +142,7 @@ mod test {
         let raw = std::fs::read_to_string("data/day08.input")?;
         let input = parse_input(&raw)?;
         assert_eq!(solve1(&input), 390);
-        assert_eq!(solve2(&input), 390);
+        assert_eq!(solve2(&input), 1011785);
         Ok(())
     }
 }
