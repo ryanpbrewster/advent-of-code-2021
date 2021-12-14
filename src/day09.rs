@@ -66,7 +66,7 @@ fn solve2(grid: &Grid) -> usize {
             }
         }
     }
-    basins.sort();
+    basins.sort_unstable();
     basins.into_iter().rev().take(3).product()
 }
 struct Explorer<'a> {

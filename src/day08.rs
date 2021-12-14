@@ -108,7 +108,7 @@ fn translated_sum(sample: &Sample) -> Option<usize> {
     });
     Some(output.fold(0, |acc, d| 10 * acc + d))
 }
-fn overlap(s1: &Signal, s2: &Signal) -> usize {
+fn overlap(s1: &[u8], s2: &[u8]) -> usize {
     s1.iter().filter(|c| s2.contains(c)).count()
 }
 
