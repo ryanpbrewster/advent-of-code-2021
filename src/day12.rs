@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 
 use anyhow::anyhow;
 
 struct Edge(String, String);
-fn parse_input(input: &str) -> anyhow::Result<Vec<Edge>> {
-    input
+fn parse_input(input: &str) -> anyhow::Result<CaveMap> {
+    let edges: Vec<Edge> = input
         .trim()
         .lines()
         .map(|line| {
@@ -14,67 +14,103 @@ fn parse_input(input: &str) -> anyhow::Result<Vec<Edge>> {
                 .ok_or_else(|| anyhow!("invalid edge: {}", line))?;
             Ok(Edge(src.to_owned(), dst.to_owned()))
         })
-        .collect()
+        .collect::<anyhow::Result<_>>()?;
+    Ok(adjacency_matrix(&edges))
 }
 
-fn solve1(inputs: &[Edge]) -> u64 {
-    let adj = adjacency_matrix(inputs);
-    let mut path = vec!["start".to_owned()];
-    count_paths(&adj, &mut path)
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Cave {
+    Start,
+    End,
+    Small,
+    Big,
 }
-fn adjacency_matrix(edges: &[Edge]) -> HashMap<String, Vec<String>> {
-    let mut adj: HashMap<String, Vec<String>> = HashMap::new();
+impl Cave {
+    fn classify(name: &str) -> Cave {
+        if name.chars().next().unwrap().is_ascii_uppercase() {
+            Cave::Big
+        } else {
+            Cave::Small
+        }
+    }
+}
+struct CaveMap {
+    caves: Vec<Cave>,
+    conns: Vec<Vec<usize>>,
+}
+const START: usize = 0;
+const END: usize = 1;
+fn adjacency_matrix(edges: &[Edge]) -> CaveMap {
+    let mut registry = HashMap::new();
+    let mut caves = Vec::new();
+    let mut conns = Vec::new();
+
+    registry.insert("start".to_owned(), START);
+    caves.push(Cave::Start);
+    conns.push(Vec::new());
+
+    registry.insert("end".to_owned(), END);
+    caves.push(Cave::End);
+    conns.push(Vec::new());
+
     for Edge(a, b) in edges {
-        adj.entry(a.clone()).or_default().push(b.clone());
-        adj.entry(b.clone()).or_default().push(a.clone());
+        let a = match registry.entry(a.to_owned()) {
+            Entry::Occupied(occ) => *occ.get(),
+            Entry::Vacant(vac) => {
+                let n = caves.len();
+                vac.insert(n);
+                caves.push(Cave::classify(a));
+                conns.push(Vec::new());
+                n
+            }
+        };
+        let b = match registry.entry(b.to_owned()) {
+            Entry::Occupied(occ) => *occ.get(),
+            Entry::Vacant(vac) => {
+                let n = caves.len();
+                vac.insert(n);
+                caves.push(Cave::classify(b));
+                conns.push(Vec::new());
+                n
+            }
+        };
+        conns[a].push(b);
+        conns[b].push(a);
     }
-    adj
+    CaveMap { caves, conns }
 }
-fn count_paths(adj: &HashMap<String, Vec<String>>, path: &mut Vec<String>) -> u64 {
-    let cur = path.last().unwrap();
-    if cur == "end" {
-        return 1;
-    }
 
+fn solve1(adj: &CaveMap) -> u64 {
+    let mut vis = vec![0; adj.caves.len()];
+    count_paths(START, &adj, &mut vis, 0)
+}
+fn solve2(adj: &CaveMap) -> u64 {
+    let mut vis = vec![0; adj.caves.len()];
+    count_paths(START, &adj, &mut vis, 1)
+}
+
+fn count_paths(cur: usize, adj: &CaveMap, vis: &mut [usize], allowed_repeats: usize) -> u64 {
     let mut count = 0;
-    for neighbor in &adj[cur] {
-        if neighbor.chars().next().unwrap().is_ascii_uppercase() || !path.contains(neighbor) {
-            path.push(neighbor.clone());
-            count += count_paths(adj, path);
-            path.pop();
-        }
-    }
-    count
-}
-
-fn solve2(inputs: &[Edge]) -> u64 {
-    let adj = adjacency_matrix(inputs);
-    let mut path = vec!["start".to_owned()];
-    count_paths_2(&adj, &mut path, false)
-}
-fn count_paths_2(adj: &HashMap<String, Vec<String>>, path: &mut Vec<String>, doubled: bool) -> u64 {
-    let cur = path.last().unwrap();
-    if cur == "end" {
-        return 1;
-    }
-
-    let mut count = 0;
-    for neighbor in &adj[cur] {
-        if neighbor == "start" {
-            continue;
-        }
-        if neighbor.chars().next().unwrap().is_ascii_uppercase() {
-            path.push(neighbor.clone());
-            count += count_paths_2(adj, path, doubled);
-            path.pop();
-        } else if !path.contains(neighbor) {
-            path.push(neighbor.clone());
-            count += count_paths_2(adj, path, doubled);
-            path.pop();
-        } else if !doubled {
-            path.push(neighbor.clone());
-            count += count_paths_2(adj, path, true);
-            path.pop();
+    for &neighbor in &adj.conns[cur] {
+        count += match adj.caves[neighbor] {
+            Cave::Start => 0,
+            Cave::End => 1,
+            Cave::Big => count_paths(neighbor, adj, vis, allowed_repeats),
+            Cave::Small => {
+                if allowed_repeats == 0 && vis[neighbor] > 0 {
+                    0
+                } else {
+                    let allowed_repeats = if vis[neighbor] == 0 {
+                        allowed_repeats
+                    } else {
+                        allowed_repeats - 1
+                    };
+                    vis[neighbor] += 1;
+                    let c = count_paths(neighbor, adj, vis, allowed_repeats);
+                    vis[neighbor] -= 1;
+                    c
+                }
+            }
         }
     }
     count
